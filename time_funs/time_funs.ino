@@ -9,6 +9,8 @@
 #define SCREEN_HEIGHT 64 
 #define OLED_RESET     -1 
 #define SCREEN_ADDRESS 0x3C
+#define WHITE SSD1306_WHITE
+#define BLACK SSD1306_BLACK
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 RTC_DS3231 rtc;
@@ -29,24 +31,39 @@ Time getCurrentTime() {
   return currTime;
 }
 
+void displayPrintCenter(char* string, uint8_t cursorY, uint16_t color) {
+  int16_t  x1, y1;
+  uint16_t w, h;
+  display.getTextBounds(string, 0, 0, &x1, &y1, &w, &h);
+  uint8_t offset = w/2;
+  int8_t cursorX = SCREEN_WIDTH/2 - offset;
+  display.setCursor(cursorX, cursorY);
+  display.setTextColor(color);
+  display.print(string);
+  
+}
+
 void displayTime(Time time, uint8_t x, uint8_t y, uint8_t textSize) {
   display.setCursor(x, y);
   display.setTextSize(textSize);
+  display.setTextColor(WHITE); //TODO: don't hard code this
   
-//  display.fillRect(x, y, 25, 25, SSD1306_WHITE);
-//  display.setTextColor(SSD1306_BLACK);
+//  display.fillRect(x, y, 25, 25, WHITE);
+//  display.setTextColor(BLACK);
 
   uint8_t hour_rep = time.hour % 12;
   if (time.hour == 12|| time.hour == 0) hour_rep = 12;
   display.print(hour_rep); 
-//  display.setTextColor(SSD1306_BLACK);
+//  display.setTextColor(BLACK);
   display.print(":");
   if (time.minute < 10) display.print(0);
   display.print(time.minute); display.print(" ");
   
-  String TOD = "AM";
-  if (time.hour > 11) TOD = "PM";
-  display.print(TOD);
+  if (time.hour > 11) {
+    display.print("PM");
+  } else {
+    display.print("AM");
+  }
   display.setTextSize(1); // reset after
 }
 
@@ -96,14 +113,11 @@ void updateButtons() {
 }
 
 Time incrementTime(Time time, bool up, char timeSection) {
-  Serial.print("Direction: "); Serial.println(up);
-  Serial.print("timeSection: "); Serial.println(timeSection);
-  Serial.print("Time got: ");
-  Serial.print(time.hour); Serial.print(":"); Serial.println(time.minute);
   if (timeSection == 'h' && up) {
     time.hour = time.hour + 1;
     if (time.hour == 24) time.hour = 0;
   }
+  
   if (timeSection == 'h' && !up) {
     time.hour = time.hour - 1;
     if (time.hour == 255) time.hour = 23;
@@ -113,37 +127,28 @@ Time incrementTime(Time time, bool up, char timeSection) {
     time.minute += 1;
     if (time.minute == 60) time.minute = 0;
   }
+  
   if (timeSection == 'm' && !up) {
     time.minute -= 1;
     if (time.minute == 255) time.minute = 59;
   }
-
-//  if (timeSection == 't' && up) {
-//    time.hour += 12;
-//    if (time.hour > 23) time.hour = time.hour - 24;
-//  }
-//  if (timeSection == 't' && !up) {
-//    time.hour -= 12;
-//    if (time.hour > 200) time.hour = time.hour + 24;
-//  }
-
-  Serial.print("Time after: ");
-  Serial.print(time.hour); Serial.print(":"); Serial.println(time.minute);
-
+  
   return time;
 }
 
-Time userSetTime(String title) {
+Time userSetTime(char* title) {
+  Serial.print("Title: "); Serial.println(title);
   Time setTime = {12, 0, 0};
   char timeSections [3] = {'h','m','t'};
   uint8_t timeSectionInd = 0;
-  display.display();
+
   while(1) {
     updateButtons();
     if (wasPressedA1) {
       Serial.println("A1 was pressed!");
       setTime = incrementTime(setTime, false, timeSections[timeSectionInd]);
     }
+    
     if (wasPressedA2) {
       Serial.println("A2 was pressed!");
       if (timeSectionInd >= 1) {
@@ -152,18 +157,46 @@ Time userSetTime(String title) {
       }
       timeSectionInd += 1;
     }
+    
     if (wasPressedA3) {
       Serial.println("A3 was pressed!");
       setTime = incrementTime(setTime, true, timeSections[timeSectionInd]);
     }
+    
     display.clearDisplay();
-    display.setCursor(25, 5);
-    display.print(title);
+    displayPrintCenter(title, 5, WHITE);
     displayTime(setTime, 25, 25, 2);
     display.display();
     delay(5);
   }
 }
+
+//void userChooseOptions(char* op1, char* op2) {
+//  Serial.print("op1: "); Serial.println(op1);
+//  Serial.print("op2: "); Serial.println(op2);
+//  uint8_t border = 4;
+//  bool isHighlighted1 = true;
+//  
+//  while(1) {
+//    display.clearDisplay();
+//    updateButtons();
+//
+//    if (wasPressedA1 || wasPressedA3) isHighlighted1^true;
+//
+//    if (isHighlighted1) {
+//      Serial.println("1 is highlighted");
+//      display.fillRect(border, border, SCREEN_WIDTH - 2*border, SCREEN_HEIGHT/2 - border, WHITE);
+//      displayPrintCenter(op1, SCREEN_HEIGHT/4, BLACK);
+//      display.drawRect(border, (SCREEN_HEIGHT+border)/2, SCREEN_WIDTH - 2*border, SCREEN_HEIGHT/2 - border, WHITE);
+//      displayPrintCenter(op2, SCREEN_HEIGHT*3/4, WHITE);
+//    } else {
+//      Serial.println("2 is highlighted");
+//    }
+//    
+//    display.display();
+//    delay(30);
+//  }
+//}
 
 void setup () {
   pinMode(A1, INPUT_PULLUP);
@@ -171,9 +204,9 @@ void setup () {
   pinMode(A3, INPUT_PULLUP);  
   
   Serial.begin(9600);
-#ifndef ESP8266
+  #ifndef ESP8266
   while (!Serial); // wait for serial port to connect. Needed for native USB
-#endif
+  #endif
   if (! rtc.begin()) {
     Serial.println("Couldn't find RTC");
     Serial.flush();
@@ -188,39 +221,42 @@ void setup () {
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
-  display.setTextColor(SSD1306_WHITE);
-
-//  Time desTime = {20, 27, 00};
-//  setCurrentTime(desTime);
-
-//  Time feedTime1 = {8, 0, 0};
-//  saveFeedTime(feedTime1, 0);
 }
+
 
 void loop () {
   Time currTime = getCurrentTime();
   display.clearDisplay();
   
-  displayTime(currTime, 25, 10, 2);
+  displayTime(currTime, 20, 10, 2);
   
   Time breakfastTime = getFeedTime(0);
   display.setCursor(25, 30);
-  display.print("Breakfast time:");
-  displayTime(breakfastTime, 40, 45, 1);
+  char bTime[] = "Breakfast time:";
+  displayPrintCenter(bTime, 30, WHITE);
+  displayTime(breakfastTime, 35, 45, 1);
   
   display.display();
-
   updateButtons();
+
+  if (wasPressedA2) {
+    Serial.println("Going to choose options");
+    char op1[] = "Choose meal times";
+    char op2[] = "Set current time";
+//    userChooseOptions(op1, op2);
+  }
   
-  if (wasPressedA2) { 
+  if (wasPressedA3) { 
     Serial.println("Going to set time mode");
-    Time setTime = userSetTime("Set current time");
+    char title[] = "Set current time";
+    Time setTime = userSetTime(title);
     setCurrentTime(setTime);
   }
 
   if (wasPressedA1) {
     Serial.println("Setting breakfast time");
-    Time breakfastTime = userSetTime("Set breakfast time");
+    char title[] = "Set breakfast time";
+    Time breakfastTime = userSetTime(title);
     saveFeedTime(breakfastTime, 0);
   }
   
