@@ -171,32 +171,32 @@ Time userSetTime(char* title) {
   }
 }
 
-//void userChooseOptions(char* op1, char* op2) {
-//  Serial.print("op1: "); Serial.println(op1);
-//  Serial.print("op2: "); Serial.println(op2);
-//  uint8_t border = 4;
+void userChooseOptions(char* op1, char* op2) {
+  Serial.print("op1: "); Serial.println(op1);
+  Serial.print("op2: "); Serial.println(op2);
+  uint8_t border = 4;
 //  bool isHighlighted1 = true;
-//  
-//  while(1) {
-//    display.clearDisplay();
+  
+  while(1) {
+    display.clearDisplay();
 //    updateButtons();
-//
+
 //    if (wasPressedA1 || wasPressedA3) isHighlighted1^true;
-//
+
 //    if (isHighlighted1) {
-//      Serial.println("1 is highlighted");
-//      display.fillRect(border, border, SCREEN_WIDTH - 2*border, SCREEN_HEIGHT/2 - border, WHITE);
-//      displayPrintCenter(op1, SCREEN_HEIGHT/4, BLACK);
-//      display.drawRect(border, (SCREEN_HEIGHT+border)/2, SCREEN_WIDTH - 2*border, SCREEN_HEIGHT/2 - border, WHITE);
-//      displayPrintCenter(op2, SCREEN_HEIGHT*3/4, WHITE);
+      Serial.println("1 is highlighted");
+      display.fillRect(border, border, SCREEN_WIDTH - 2*border, SCREEN_HEIGHT/2 - border, WHITE);
+      displayPrintCenter(op1, SCREEN_HEIGHT/4, BLACK);
+      display.drawRect(border, (SCREEN_HEIGHT+border)/2, SCREEN_WIDTH - 2*border, SCREEN_HEIGHT/2 - border, WHITE);
+      displayPrintCenter(op2, SCREEN_HEIGHT*3/4, WHITE);
 //    } else {
 //      Serial.println("2 is highlighted");
 //    }
-//    
-//    display.display();
-//    delay(30);
-//  }
-//}
+    
+    display.display();
+    delay(30);
+  }
+}
 
 void setup () {
   pinMode(A1, INPUT_PULLUP);
@@ -243,7 +243,7 @@ void loop () {
     Serial.println("Going to choose options");
     char op1[] = "Choose meal times";
     char op2[] = "Set current time";
-//    userChooseOptions(op1, op2);
+    userChooseOptions(op1, op2);
   }
   
   if (wasPressedA3) { 
