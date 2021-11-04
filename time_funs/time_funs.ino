@@ -32,6 +32,7 @@ SpeedyStepper stepper;
 bool isDownUP = false;   bool wasPressedUP = false;
 bool isDownMID = false;  bool wasPressedMID = false;
 bool isDownDOWN = false; bool wasPressedDOWN = false;
+int pressCounter = 0;
 
 struct Time {
     uint8_t hour;
@@ -183,23 +184,38 @@ void updateButtons() {
   uint16_t DOWNVal = analogRead(DOWN_PIN);
 
   if (wasPressedUP) wasPressedUP = false;
-  if (UPVal < 500) isDownUP = true;
+  if (UPVal < 500) {
+    isDownUP = true;
+    pressCounter += 1;
+    if (pressCounter >= 15 && pressCounter % 2 == 0) wasPressedUP = true; // handle long presses
+  }
   if (UPVal > 500 && isDownUP) {
     isDownUP = false;
+    pressCounter = 0;
     wasPressedUP = true;
   }
 
   if (wasPressedMID) wasPressedMID = false;
-  if (MIDVal < 500) isDownMID = true;
+  if (MIDVal < 500) {
+    isDownMID = true;
+    pressCounter += 1;
+    if (pressCounter >= 15 && pressCounter % 2 == 0) wasPressedMID = true;
+  }
   if (MIDVal > 500 && isDownMID) {
     isDownMID = false;
+    pressCounter = 0;
     wasPressedMID = true;
   }
 
   if (wasPressedDOWN) wasPressedDOWN = false;
-  if (DOWNVal < 500) isDownDOWN = true;
+  if (DOWNVal < 500) {
+    isDownDOWN = true;
+    pressCounter += 1;
+    if (pressCounter >= 15 && pressCounter % 2 == 0) wasPressedDOWN = true;
+  }
   if (DOWNVal > 500 && isDownDOWN) {
     isDownDOWN = false;
+    pressCounter = 0;
     wasPressedDOWN = true;
   }
 }
@@ -307,20 +323,33 @@ bool isAligned() {
   return (home_data < 500);
 }
 
+void enableMotor() {
+  digitalWrite(EN_PIN, LOW);
+}
+
+void disableMotor() {
+  digitalWrite(EN_PIN, HIGH);
+}
+
 void homeTray() {
   display.clearDisplay();
   displayPrintCenter("Initializing...", SCREEN_HEIGHT/2, WHITE);
   display.display();
+
+  enableMotor();
   stepper.setSpeedInStepsPerSecond(100*32);
   stepper.setAccelerationInStepsPerSecondPerSecond(100*64);
 
   while (!isAligned()) {
     stepper.moveRelativeInSteps(200*8 / 12);
   }
+  disableMotor();
 }
 
 void rotateTray() {
+  enableMotor();
   stepper.moveRelativeInSteps(200*8 / 12 * 63);
+  disableMotor();
 }
 
 void checkIfFeedTime() {
@@ -339,11 +368,11 @@ void setup() {
   pinMode(EN_PIN, OUTPUT);
   pinMode(M0_PIN, OUTPUT);
   pinMode(M1_PIN, OUTPUT);
-  pinMode(M2_PIN, OUTPUT);
-  digitalWrite(EN_PIN, LOW); 
+  pinMode(M2_PIN, OUTPUT); 
   digitalWrite(M0_PIN, HIGH);
   digitalWrite(M1_PIN, HIGH);
   digitalWrite(M2_PIN, LOW); 
+  disableMotor();
 
   #ifndef ESP8266
   while (!Serial); // wait for serial port to connect. Needed for native USB
@@ -366,12 +395,6 @@ void setup() {
   display.setTextSize(1);
   stepper.connectToPins(MOTOR_STEP_PIN, MOTOR_DIRECTION_PIN);
   homeTray();
-
-//  Time setTime;
-//  setTime.hour = 12;
-//  setTime.minute = 11;
-//  setTime.second = 15;
-//  setCurrentTime(setTime);
 }
 
 void loop() {
