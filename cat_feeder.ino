@@ -3,7 +3,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <SpeedyStepper.h>
+#include <FlexyStepper.h>
 #include <EEPROM.h>
 
 #define SCREEN_WIDTH 128 
@@ -27,7 +27,7 @@
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 RTC_DS3231 rtc;
-SpeedyStepper stepper;
+FlexyStepper stepper;
 
 bool isDownUP = false;   bool wasPressedUP = false;
 bool isDownMID = false;  bool wasPressedMID = false;
@@ -278,7 +278,7 @@ Time userSetTime(char* title, Time setTime) {
 }
 
 bool userChooseOptions(char* op1, char* op2) {
-  bool isHighlighted1 = true; //TODO: this is a little hacky
+  bool isHighlighted1 = true;
   
   while(1) {
     display.clearDisplay();
@@ -292,7 +292,7 @@ bool userChooseOptions(char* op1, char* op2) {
       displayPrintCenter(op1, SCREEN_HEIGHT/4, BLACK);
       display.drawRect(BORDER, (SCREEN_HEIGHT+BORDER)/2, SCREEN_WIDTH - 2*BORDER, 
                        SCREEN_HEIGHT/2 - BORDER, WHITE);
-      displayPrintCenter(op2, SCREEN_HEIGHT*3/4, WHITE);
+      displayPrintCenter(op2, SCREEN_HEIGHT*3/4 - 4, WHITE);
       
     } else {
       display.drawRect(BORDER, BORDER, SCREEN_WIDTH - 2*BORDER, 
@@ -332,29 +332,38 @@ void disableMotor() {
 }
 
 void homeTray() {
+  if (isAligned()) return;
+  
   display.clearDisplay();
   displayPrintCenter("Initializing...", SCREEN_HEIGHT/2, WHITE);
   display.display();
 
   enableMotor();
-  stepper.setSpeedInStepsPerSecond(100*32);
-  stepper.setAccelerationInStepsPerSecondPerSecond(100*64);
+  stepper.setSpeedInStepsPerSecond(1600);
+  stepper.setAccelerationInStepsPerSecondPerSecond(3200);
+  stepper.setTargetPositionInSteps(200*8 / 12 * 63 + 10);
+  stepper.setCurrentPositionInSteps(0);
+  bool stopFlag = false;
 
-  while (!isAligned()) {
-    stepper.moveRelativeInSteps(200*8 / 12);
+  while(!stepper.motionComplete()) {
+    stepper.processMovement();
+    if (isAligned() && (stopFlag == false)) {
+      stepper.setTargetPositionToStop();
+      stopFlag = true;
+    }
   }
+  stepper.moveRelativeInSteps(-240);
   disableMotor();
 }
 
 void rotateTray() {
   enableMotor();
-  stepper.moveRelativeInSteps(200*8 / 12 * 63);
+  stepper.moveRelativeInSteps(200*8 / 12 * 63 + 10);
   disableMotor();
 }
 
 void checkIfFeedTime() {
   if (getMinutes(nextMealTime) == getMinutes(getCurrentTime())) {
-    Serial.println("TIME TO EAT!");
     rotateTray();
   }
 }
